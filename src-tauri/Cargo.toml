@@ -1,0 +1,54 @@
+[package]
+name = "wb-switch-rust"
+version = "0.1.59"
+description = "workbuddy控制台 —— WorkBuddy 账号切换工具"
+authors = ["ZhangJiuKer"]
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[lib]
+# The `_lib` suffix may seem redundant but it is necessary
+# to make the lib name unique and wouldn't conflict with the bin name.
+# This seems to be only an issue on Windows, see https://github.com/rust-lang/cargo/issues/8519
+name = "wb_switch_rust_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[features]
+# 默认启用 custom-protocol：不开该 feature 的 `cargo build --release` 会产出加载
+# devUrl http://localhost:1420 的开发模式 exe，vite 未运行时窗口即报
+# “localhost 拒绝连接”。`tauri dev` 传 --no-default-features 并过滤本 feature，
+# `tauri build` 显式传 tauri/custom-protocol，两者均不受影响。
+default = ["custom-protocol"]
+custom-protocol = ["tauri/custom-protocol"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = ["tray-icon", "macos-private-api"] }
+tauri-plugin-opener = "2"
+wb-switch-core = { path = "../crates/wb-switch-core" }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+uuid = { version = "1", features = ["v4"] }
+tokio = { version = "1", features = ["rt", "sync", "time", "macros"] }
+tauri-plugin-notification = "2"
+tauri-plugin-dialog = "2.7.2"
+
+# 系统自启（开机静默启动）与单实例互斥：仅桌面目标支持（macOS / Windows / Linux）。
+# 单实例插件必须最先注册（见 lib.rs），第二个进程会在建窗口 / 建托盘前退出。
+[target.'cfg(not(any(target_os = "android", target_os = "ios")))'.dependencies]
+tauri-plugin-autostart = "2"
+tauri-plugin-single-instance = "2"
+
+[target.'cfg(target_os = "macos")'.dependencies]
+objc2 = "0.6"
+objc2-app-kit = { version = "0.3", default-features = false, features = ["std", "NSApplication", "NSImage", "NSWorkspace"] }
+objc2-foundation = { version = "0.3", default-features = false, features = ["std", "NSData", "NSString"] }
+libc = "0.2"
+
+# 托盘图标跟随「Windows 模式」：读 SystemUsesLightTheme，并监听该键变化。
+# 版本与依赖图里已有的那份一致（ring → rustls 链路），不引入新的下载。
+[target.'cfg(target_os = "windows")'.dependencies]
+windows-sys = { version = "0.52", features = ["Win32_Foundation", "Win32_System_Registry"] }

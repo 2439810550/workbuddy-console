@@ -1,0 +1,17 @@
+[workspace]
+members = ["crates/wb-switch-core", "crates/wb-switch-server", "src-tauri"]
+resolver = "2"
+
+# `schemars 0.8`（tauri-build / tauri-plugin 的传递依赖，且开启了 `preserve_order`）
+# 用 `indexmap 1.x` 的 `IndexMap<K, V>` 两参数形式。而 `indexmap 1.9.3` 的 `IndexMap`
+# 只在 `has_std` 下有默认哈希参数，该标记由 build.rs 里的 `autocfg` 探测 sysroot 得出。
+# 在新版 Rust（本机 1.98.1 实测）上该探测失败，于是 `IndexMap` 变成必须显式传三个泛型
+# 参数，编译报 `E0107: struct takes 3 generic arguments but 2 were supplied`。
+#
+# 这里 patch 到本地副本：其 build.rs 无条件声明 `has_std`，从根上消除 E0107。
+# 只动 build script 的探测逻辑，不触碰任何库代码。
+#
+# 注意：这是**构建层**的兼容修复，与业务逻辑无关。若你的工具链较老（autocfg 探测正常）
+# 则不需要它，可以整段删除并移除 `vendor-patched/`。
+[patch.crates-io]
+indexmap = { path = "vendor-patched/indexmap" }
